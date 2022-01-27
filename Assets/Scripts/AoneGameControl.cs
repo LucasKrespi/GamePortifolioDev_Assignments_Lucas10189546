@@ -4,12 +4,19 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
+public enum RESOURCE_TYPE
+{
+    NONE = 0,
+    MINIMUM = 1,
+    MEDIUM = 2,
+    MAX = 3
+}
 public class AoneGameControl : MonoBehaviour
 {
     //Singleton Class
     public static AoneGameControl Instance;
 
-
+    //Board Variables
     public Canvas board;
 
     public GameObject TilePrefab;
@@ -19,14 +26,23 @@ public class AoneGameControl : MonoBehaviour
 
     public Tile[,] tilesList;
 
+    private int numOfGoldenTiles = 23;
+
+    private List<Tile> goldenTilesList;
+    //UI Components
     private Toggle isDiggingToogle;
     public bool isDigging = true;
     private TextMeshProUGUI rescourceScoreText;
-    private int rescourceCollected = 0;
+    private int resourceCollected = 0;
+    private TextMeshProUGUI message;
 
     //Counters
     public int scanCounter = 6;
     public int extractCounter = 3;
+
+    //Fill Bars
+    private Slider scanBarSlider;
+    private Slider extractBarSlider;
 
     private void Awake()
     {
@@ -47,246 +63,296 @@ public class AoneGameControl : MonoBehaviour
         isDiggingToogle = GetComponentInChildren<Toggle>();
         isDiggingToogle.onValueChanged.AddListener(delegate { OnToggleChange(); });
         rescourceScoreText = GetComponentInChildren<TextMeshProUGUI>();
-      
+
+        scanBarSlider = transform.Find("ScanBar").GetComponent<Slider>();
+        extractBarSlider = transform.Find("ExtractBar").GetComponent<Slider>();
+        message = transform.Find("Message Board/DialogBox/Message").GetComponent<TextMeshProUGUI>();
 
         CreateBoard();
+        SetTilesValeu();
+        UpdateUI();
     }
+    private void Update()
+    {
+        if(Input.GetKeyDown(KeyCode.P))
+        {
+            foreach (Tile t in tilesList)
+            {
+                t.Scan();
+            }
+        } 
+        if(Input.GetKeyDown(KeyCode.O))
+        {
+            foreach (Tile t in tilesList)
+            {
+                t.resetColor();
+            }
+        }
 
+
+    }
     private void OnToggleChange()
     {
         isDigging = !isDigging;
+
+        UpdateUI();
     }
-    void CreateBoard()
+    private void CreateBoard()
     {
-        for(int y = 0; y < hight; y++)
+        int tilecounter = 0;
+        goldenTilesList = new List<Tile>();
+
+        for (int y = 0; y < hight; y++)
         {
             for(int x = 0; x < width; x++)
             {
-                tilesList[x, y] = new Tile(Instantiate(TilePrefab, board.transform), x, y);
-               
+                RESOURCE_TYPE rTemp;
+                //This is making possible to have golden/MAX tiles on x  1/7/13/19/25/31
+                if (tilecounter % 6 == 1 && numOfGoldenTiles > 0)
+                {
+                    rTemp = (RESOURCE_TYPE)Random.Range(0, 4);
+                }
+                else
+                {
+                    rTemp = (RESOURCE_TYPE)Random.Range(0, 3);
+                }
+                   
+                if(rTemp == RESOURCE_TYPE.MAX)
+                {
+                   
+                    tilesList[x, y] = new Tile(Instantiate(TilePrefab, board.transform), x, y, rTemp);
+                    if(CheckIfOverlaying(tilesList[x, y]))
+                    {
+                        //If new golden neighbour tiles are not colliding another godentile neighbours, the new goldentile is created
+                        goldenTilesList.Add(tilesList[x, y]);
+                        numOfGoldenTiles--;
+                    }
+                    else
+                    {
+                        //Otherwise its ressource is set at randon to a value lower then golden
+                        tilesList[x, y].resource = (RESOURCE_TYPE)Random.Range(0, 3);
+                    }
+                    
+                    tilecounter++;
+                }
+                else
+                {
+                    tilesList[x, y] = new Tile(Instantiate(TilePrefab, board.transform), x, y, rTemp);
+                    tilecounter++;
+                }       
             }
         }
     }
 
+    //Will Check if neighbours of existing golden tile are not colliding with new goldentile neighbours
+    private bool CheckIfOverlaying(Tile Test)
+    {
+        foreach(Tile t in goldenTilesList)
+        {
+            foreach(Tile nb in FindneighbourTilesExtract(Test))
+            {
+                foreach (Tile tnb in FindneighbourTilesExtract(t))
+                {
+                    if (tnb == nb)
+                    {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    //Will accert the valeu of the neighbour tiles of a golden tile
+    private void SetTilesValeu()
+    {
+        List<Tile> Temp = new List<Tile>();
+
+        foreach (Tile t in goldenTilesList)
+        {
+            Temp = FindneighbourTilesExtract(t);
+            foreach(Tile nb in Temp)
+            {
+                nb.resource = RESOURCE_TYPE.MINIMUM;
+            }
+
+            Temp = FindneighbourTilesScan(t);
+            foreach (Tile nb in Temp)
+            {
+                nb.resource = RESOURCE_TYPE.MEDIUM;
+            }
+
+            t.resource = RESOURCE_TYPE.MAX;
+        }
+    }
+
+    //Will Call the extract func from all tiles in a 5x5 grid arround the CallinTile
     public void ExtractNeighbordTiles(Tile CallinTile)
     {
         
         foreach(Tile t in tilesList)
         {
-            foreach(Vector2 pos in CallinTile.FindneighbourTilesExtract())
+            foreach(Tile nb in FindneighbourTilesExtract(CallinTile))
             {
-                if(t.coord == pos)
+                if(t == nb)
                 {
-                    rescourceCollected += t.Extract();
+                    resourceCollected += t.Extract();
                 }
             }
         }
 
-        UpdateScore();
+        UpdateUI();
     }
 
+    //Will Call the scan func from all tiles in a 5x5 grid arround the CallinTile
     public void ScanNeighbordTiles(Tile CallinTile)
     {
 
         foreach (Tile t in tilesList)
         {
-            foreach (Vector2 pos in CallinTile.FindneighbourTilesScan())
+            foreach (Tile nb in FindneighbourTilesScan(CallinTile))
             {
-                if (t.coord == pos)
+                if (t == nb)
                 {
                    t.Scan();
                 }
             }
         }
 
-        UpdateScore();
+        UpdateUI();
     }
 
 
-
-    private void UpdateScore()
-    {
-        rescourceScoreText.text = "Resource Collected: " + rescourceCollected;
-    }
-
-}
-
-public class Tile
-{
-    public GameObject tile;
-
-    private Image image;
-
-    public Button button;
-
-    public int resource;
-
-    public Vector2 coord;
-
-    public Tile(GameObject prefab, int x, int y)
-    {
-        tile = prefab;
-        button = tile.GetComponent<Button>();
-        image = tile.GetComponent<Image>();
-        button.onClick.AddListener(OnClick);
-
-        coord.x = x;
-        coord.y = y;
-
-        resource = Random.RandomRange(0, 3);
-    }
-
-    public void OnClick()
+    //Return a 5x5 Grid of Tiles arround the tile passed
+    public List<Tile> FindneighbourTilesExtract(Tile tile)
     {
 
-       InteractWithTile();
-      
-    }
-
-    public int InteractWithTile()
-    {
-        int temp = 0;
-        if (AoneGameControl.Instance.isDigging)
-        {
-            if (AoneGameControl.Instance.extractCounter < 1) return temp;
-
-            temp = Extract();
-           // AoneGameControl.Instance.extractCounter--;
-            AoneGameControl.Instance.ExtractNeighbordTiles(this);
-        }
-        else
-        {
-            if (AoneGameControl.Instance.scanCounter < 1) return temp;
-
-            Scan();
-           // AoneGameControl.Instance.scanCounter--;
-            AoneGameControl.Instance.ScanNeighbordTiles(this);
-        }
-
-
-        return temp;
-    }
-
-    public void Scan()
-    {
-
-        switch (resource)
-        {
-            case 0:
-                image.color = Color.green;
-                break;
-            case 1:
-                image.color = Color.blue;
-                break;
-            case 2:
-                image.color = Color.red;
-                break;
-            case 3:
-                image.color = Color.black;
-                break;
-        }
-
-       
-    }
-
-    public int Extract()
-    {
-        int temp;
-        switch (resource)
-        {
-            case 0:
-                image.color = Color.green;
-                break;
-            case 1:
-                image.color = Color.blue;
-                break;
-            case 2:
-                image.color = Color.red;
-                break;
-            case 3:
-                image.color = Color.black;
-                break;
-
-
-        }
-
-        temp = resource;
-        resource = (int)(resource * 0.5f);
-       
-        return temp;
- 
-    }
-
-    //Returns an array with a vector 2 with coodenates x and y
-    public List<Vector2> FindneighbourTilesScan()
-    {
-
-        List<Vector2> Temp = new List<Vector2>();
-        int loopRangeX = (int)coord.x + 2;
-        int loopRangeY = (int)coord.y + 2;
-        int offsetX = 0;
-        int offsetY = 0;
-
-    
-        if (coord.x >= 1)
-        {
-            offsetX = -1;
-        }
-
-        if (coord.y >= 1)
-        {
-            offsetY = -1;
-        }
-
-        for (int x = (int)coord.x + offsetX; x < loopRangeX; x++)
-        {
-            for (int y = (int)coord.y + offsetY; y < loopRangeY; y++)
-            {
-                Temp.Add(new Vector2(x, y));
-            }
-        }
-
-        return Temp;
-    }
-
-    public List<Vector2> FindneighbourTilesExtract()
-    {
-
-        List<Vector2> Temp = new List<Vector2>();
-        int loopRangeX = (int)coord.x + 3;
-        int loopRangeY = (int)coord.y + 3;
+        List<Tile> Temp = new List<Tile>();
+        int loopRangeX = (int)tile.coord.x + 3;
+        int loopRangeY = (int)tile.coord.y + 3;
         int offsetX = 0;
         int offsetY = 0;
 
 
-        if (coord.x == 1)
+        if (tile.coord.x == 1)
         {
             offsetX = -1;
         }
-        if (coord.x >= 2)
+        if (tile.coord.x >= 2)
         {
-            offsetX = -2;
+            offsetX = -2;    
         }
-
-
-        if (coord.y == 1)
+       
+        if (tile.coord.y == 1)
         {
             offsetY = -1;
         }
 
-        if (coord.y >= 2)
+        if (tile.coord.y >= 2)
         {
             offsetY = -2;
         }
 
-        for (int x = (int)coord.x + offsetX; x < loopRangeX; x++)
+        for (int x = (int)tile.coord.x + offsetX; x < loopRangeX; x++)
         {
-            for (int y = (int)coord.y + offsetY; y < loopRangeY; y++)
+            for (int y = (int)tile.coord.y + offsetY; y < loopRangeY; y++)
             {
-                Temp.Add(new Vector2(x, y));
+                if(x < width && y < hight)
+                    Temp.Add(tilesList[x, y]);
             }
         }
 
         return Temp;
     }
+
+    //Return a 5x5 Grid of Tiles arround the tile passed
+    public List<Tile> FindneighbourTilesScan(Tile tile)
+    {
+
+        List<Tile> Temp = new List<Tile>();
+        int loopRangeX = (int)tile.coord.x + 2;
+        int loopRangeY = (int)tile.coord.y + 2;
+        int offsetX = 0;
+        int offsetY = 0;
+
+
+        if ((int)tile.coord.x >= 1)
+        {
+            offsetX = -1;
+        }
+
+        if ((int)tile.coord.y >= 1)
+        {
+            offsetY = -1;
+        }
+
+        for (int x = (int)tile.coord.x + offsetX; x < loopRangeX; x++)
+        {
+            for (int y = (int)tile.coord.y + offsetY; y < loopRangeY; y++)
+            {
+                if (x < width && y < hight)
+                    Temp.Add(tilesList[x, y]);
+            }
+        }
+
+        return Temp;
+    }
+
+
+    private void UpdateUI()
+    {
+        rescourceScoreText.text = "Resource Collected: " + resourceCollected;
+
+        if(isDigging)
+        {
+            if(extractCounter <= 0)
+            {
+                message.text = "No more fuel left to extract. For Debug Purpose you can togle the view of the boar with P and O keys";
+            }
+            else
+            {
+                message.text = "Extract Mode is active click on tile to get its resources. For Debug Purpose you can togle the view of the boar with P and O keys";
+            }
+        }
+        else
+        {
+
+            if (scanCounter <= 0)
+            {
+                message.text = "No more fuel left to scam. For Debug Purpose you can togle the view of the boar with P and O keys";
+            }
+            else
+            {
+                message.text = "Scam Mode is active click on tile to get a pick on its resources. For Debug Purpose you can togle the view of the boar with P and O keys";
+            }
+           
+        }
+        scanBarSlider.value = scanCounter;
+        extractBarSlider.value = extractCounter;
+    }
+
+    public void ResetGame()
+    {
+        //Reset Variables
+        scanCounter = 6;
+        extractCounter = 3;
+        numOfGoldenTiles = 23;
+        resourceCollected = 0;
+        isDigging = true;
+        
+        //Clena lists
+        foreach(Tile t in tilesList)
+        {
+            t.Kill();
+        }
+
+        goldenTilesList.Clear();
+
+        // Generate new board
+        CreateBoard();
+        SetTilesValeu();
+        UpdateUI();
+    }
 }
+

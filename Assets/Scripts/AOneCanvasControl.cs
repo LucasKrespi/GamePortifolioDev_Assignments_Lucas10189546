@@ -40,6 +40,7 @@ public class AOneCanvasControl : MonoBehaviour
         else
         {
             Cursor.lockState = CursorLockMode.Locked;
+            AoneGameControl.Instance.ResetGame();
         }
 
     }
