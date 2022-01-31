@@ -120,6 +120,7 @@ public class Tile
 
     public void Kill()
     {
+
         GameObject.Destroy(tile);
     }
 

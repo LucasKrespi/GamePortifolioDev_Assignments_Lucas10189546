@@ -54,49 +54,73 @@ public class AoneGameControl : MonoBehaviour
         {
             Destroy(gameObject);
         }
-    }
-    // Start is called before the first frame update
-    void Start()
-    {
-        tilesList = new Tile[hight, width];
 
         isDiggingToogle = GetComponentInChildren<Toggle>();
         isDiggingToogle.onValueChanged.AddListener(delegate { OnToggleChange(); });
-        rescourceScoreText = GetComponentInChildren<TextMeshProUGUI>();
+        rescourceScoreText = transform.Find("Resource").GetComponent<TextMeshProUGUI>();
 
         scanBarSlider = transform.Find("ScanBar").GetComponent<Slider>();
         extractBarSlider = transform.Find("ExtractBar").GetComponent<Slider>();
         message = transform.Find("Message Board/DialogBox/Message").GetComponent<TextMeshProUGUI>();
 
+    }
+    // Start is called before the first frame update
+    void Start()
+    {
+        tilesList = new Tile[hight, width];
         CreateBoard();
         SetTilesValeu();
         UpdateUI();
     }
     private void Update()
     {
-        if(Input.GetKeyDown(KeyCode.P))
-        {
-            foreach (Tile t in tilesList)
-            {
-                t.Scan();
-            }
-        } 
-        if(Input.GetKeyDown(KeyCode.O))
-        {
-            foreach (Tile t in tilesList)
-            {
-                t.resetColor();
-            }
-        }
-
-
+        CheckGameOver();
     }
+
+    //======================= UI Management
     private void OnToggleChange()
     {
-        isDigging = !isDigging;
+        if (isDiggingToogle.isOn)
+        {
+            isDigging = true;
+        }
+        else
+        {
+            isDigging = false;
+        }
 
         UpdateUI();
     }
+
+    private void UpdateUI()
+    {
+        rescourceScoreText.text = "Resource Collected: " + resourceCollected;
+
+        if (extractCounter <= 0)
+        {
+            message.text = "You collected a total of " + resourceCollected + " and You have no more fuel. Press E to go back to main game and reset this game.";
+        }
+        else if (isDigging)
+        {
+            message.text = "Extract Mode is active click on tile to get its resources";
+        }
+        else
+        {
+            if (scanCounter <= 0)
+            {
+                message.text = "No fuel left to scam.";
+            }
+            else
+            {
+                message.text = "Scam Mode is active click on tile to get a pick on its resources.";
+            }
+        }
+
+        scanBarSlider.value = scanCounter;
+        extractBarSlider.value = extractCounter;
+    }
+
+    // ===================== Board Creation ==================
     private void CreateBoard()
     {
         int tilecounter = 0;
@@ -223,7 +247,7 @@ public class AoneGameControl : MonoBehaviour
         UpdateUI();
     }
 
-
+    //==================== Tiles Management ==================== 
     //Return a 5x5 Grid of Tiles arround the tile passed
     public List<Tile> FindneighbourTilesExtract(Tile tile)
     {
@@ -300,38 +324,18 @@ public class AoneGameControl : MonoBehaviour
     }
 
 
-    private void UpdateUI()
+    //===================== Game Management ===================
+
+    private void CheckGameOver()
     {
-        rescourceScoreText.text = "Resource Collected: " + resourceCollected;
-
-        if(isDigging)
+        if(extractCounter <= 0)
         {
-            if(extractCounter <= 0)
+            foreach(Tile t in tilesList)
             {
-                message.text = "No more fuel left to extract. For Debug Purpose you can togle the view of the boar with P and O keys";
-            }
-            else
-            {
-                message.text = "Extract Mode is active click on tile to get its resources. For Debug Purpose you can togle the view of the boar with P and O keys";
+                t.Scan();
             }
         }
-        else
-        {
-
-            if (scanCounter <= 0)
-            {
-                message.text = "No more fuel left to scam. For Debug Purpose you can togle the view of the boar with P and O keys";
-            }
-            else
-            {
-                message.text = "Scam Mode is active click on tile to get a pick on its resources. For Debug Purpose you can togle the view of the boar with P and O keys";
-            }
-           
-        }
-        scanBarSlider.value = scanCounter;
-        extractBarSlider.value = extractCounter;
     }
-
     public void ResetGame()
     {
         //Reset Variables
@@ -341,7 +345,7 @@ public class AoneGameControl : MonoBehaviour
         resourceCollected = 0;
         isDigging = true;
         
-        //Clena lists
+        //Clean lists
         foreach(Tile t in tilesList)
         {
             t.Kill();
@@ -349,6 +353,7 @@ public class AoneGameControl : MonoBehaviour
 
         goldenTilesList.Clear();
 
+        isDiggingToogle.isOn = true;
         // Generate new board
         CreateBoard();
         SetTilesValeu();

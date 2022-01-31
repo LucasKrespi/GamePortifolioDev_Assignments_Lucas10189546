@@ -26,6 +26,11 @@ public class AOneCanvasControl : MonoBehaviour
             ToggleCanvas();
             GM.Instance.startedMiniGameOne.Invoke();
         }
+
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            Application.Quit();
+        }
     }
 
     private void ToggleCanvas()
