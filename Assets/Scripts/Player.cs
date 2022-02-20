@@ -26,7 +26,7 @@ public class Player : MonoBehaviour
     void Start()
     {
        controller = GetComponent<CharacterController>();
-       GM.Instance.startedMiniGameOne.AddListener(GameStarted);
+       GM.Instance.startedMiniGame.AddListener(GameStarted);
     }
 
     // Update is called once per frame

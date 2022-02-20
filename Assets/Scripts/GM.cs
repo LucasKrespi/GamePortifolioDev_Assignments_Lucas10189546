@@ -6,7 +6,7 @@ using UnityEngine.Events;
 public class GM : MonoBehaviour
 {
     static public GM Instance;
-    public UnityEvent startedMiniGameOne;
+    public UnityEvent startedMiniGame;
 
     private void Awake()
     {

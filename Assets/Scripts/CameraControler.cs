@@ -15,7 +15,7 @@ public class CameraControler : MonoBehaviour
     void Start()
     {
         Cursor.lockState = CursorLockMode.Locked;
-        GM.Instance.startedMiniGameOne.AddListener(GameStarted);
+        GM.Instance.startedMiniGame.AddListener(GameStarted);
     }
 
     // Update is called once per frame
