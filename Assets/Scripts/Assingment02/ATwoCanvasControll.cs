@@ -6,6 +6,7 @@ public class ATwoCanvasControll : MonoBehaviour
 {
     private Canvas miniGameCanvas;
     [SerializeField]
+    private Canvas difficultySelectCanvas;
     private bool playerIsColliding;
     private bool isActive = true;
 
@@ -35,6 +36,7 @@ public class ATwoCanvasControll : MonoBehaviour
     {
         isActive = !isActive;
         miniGameCanvas.gameObject.SetActive(isActive);
+        difficultySelectCanvas.gameObject.SetActive(isActive);
 
         if (isActive)
         {
@@ -44,6 +46,7 @@ public class ATwoCanvasControll : MonoBehaviour
         {
             Cursor.lockState = CursorLockMode.Locked;
             LockPickingControll.instance.ResetGame();
+            LockPickingControll.instance.pause = true;
         }
 
     }
